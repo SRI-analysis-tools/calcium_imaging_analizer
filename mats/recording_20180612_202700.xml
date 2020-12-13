@@ -1,0 +1,36 @@
+<recording>
+ <attrs>
+  <attr name="version">2.0.4-20160331-145944</attr>
+  <attr name="width">1440</attr>
+  <attr name="height">1080</attr>
+  <attr name="left">0</attr>
+  <attr name="top">0</attr>
+  <attr name="fps">15.00</attr>
+  <attr name="exposure">66.560</attr>
+  <attr name="time">01:59</attr>
+  <attr name="frames">1801</attr>
+  <attr name="dropped_count">0</attr>
+  <attr name="dropped">[]</attr>
+  <attr name="downsample">4X</attr>
+  <attr name="gain">2.5</attr>
+  <attr name="led_power">40</attr>
+  <attr name="led_delay_value">60</attr>
+  <attr name="led_session">92:03</attr>
+  <attr name="led_project">245:58</attr>
+  <attr name="record_start">Jun 12, 2018 08:27:00.086000 PM</attr>
+  <attr name="record_end">Jun 12, 2018 08:29:00.113000 PM</attr>
+  <attr name="record_triggered">False</attr>
+  <attr name="record_sched_batch">2</attr>
+  <attr name="record_sched_name">recordingschedule.sch</attr>
+  <attr name="record_sched_step">1</attr>
+  <attr name="record_sched_cycle">43</attr>
+  <attr name="rois">[]</attr>
+  <attr name="meta_data">[]</attr>
+  <attr name="camera_chip_version">0x1402L</attr>
+  <attr name="sensor_board_serial_number">D-98</attr>
+  <attr name="hardware_serial_number">AA-1224520516</attr>
+ </attrs>
+<decompressed>
+ <file frames="1801">recording_20180612_202700.hdf5</file>
+</decompressed>
+</recording>
