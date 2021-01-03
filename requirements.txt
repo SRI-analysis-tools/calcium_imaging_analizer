@@ -1,0 +1,10 @@
+#pip3 install -r requirements.txt
+pandas
+scipy
+xml-python
+pyqt5
+pyqtgraph
+mne
+opencv-python
+pillow
+
