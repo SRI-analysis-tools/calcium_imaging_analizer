@@ -611,6 +611,9 @@ class MyForm(QMainWindow):
             synchan=self.ui.sync_channel.value()-1
             #print("opening channel {0}".format(synchan))
             sync = numpy.asarray(edf.get_data(synchan).flatten())
+            if self.ui.checkBox_3.isChecked():
+                plt.figure()
+                plt.plot(sync)
             self.EEG =numpy.asarray(edf.get_data(0).flatten())
             midpoint =0.3 *(sync.max() + sync.min())
             shiftsync, aux0 = numpy.zeros(len(sync)), numpy.zeros(len(sync))
@@ -829,14 +832,14 @@ class MyForm(QMainWindow):
         k0=1
         lstate = ['Wake'] * len(self.activityW[1, :]) + ['NREM'] * len(self.activityN[1, :]) + ['REM'] * len(
             self.activityR[1, :])
-        #there can be statistical differences due to larger than the rest or smaller than the rest activity
+        #there can be statistical differences due to larger than the rest for asingle or for 2 states (if there are 3)
         wakeL =[]
         nremL = []
         remL = []
+        wakerem=[]
+        waknr=[]
+        remnr=[]
         mixed=[]
-        wakeS = []
-        nremS = []
-        remS = []
         indep = []
         faL=[]
         oaL=[]
@@ -853,7 +856,7 @@ class MyForm(QMainWindow):
         lowa1 = int(len(self.owa)/2)
         isrem=False
 
-        if len(self.activityR[1, :]) > 0:
+        if len(self.activityR[1, :]) > 1:
             isrem=True
         ncells_list=[]
         for ti in range(self.Traces.shape[0]):
@@ -871,22 +874,37 @@ class MyForm(QMainWindow):
                 #Check for significant differences. If there are, if one is significantly larger than the other two, save it, otherwise save as mix.
                 if p<0.05:
                     k0+=1
+                    #largest activity for wake 
                     if (self.activityW[n,:].mean()>self.activityN[n,:].mean()) and (self.activityW[n,:].mean()>self.activityR[n,:].mean()):
+                        
                         if pwn<0.025 and pwr<0.025: #P val divided by two due to multiple comparisons
                             wakeL.append(n)
                             pvalw.append(p)
                         else:
-                            mixed.append(n)
-                            pmix.append(p)
-
+                            #could be warem or wanr
+                            if pwn<0.05:
+                                wakerem.append(n)
+                            else:
+                                if pwr<0.05:
+                                    waknr.append(n)
+                            if pwr>0.05 and pwn>0.05:
+                                mixed.append(n)
+                                pmix.append(p)
+                    #largest activity for NR 
                     elif (self.activityN[n, :].mean() > self.activityW[n, :].mean()) and (
                                     self.activityN[n, :].mean() > self.activityR[n, :].mean()):
                         if pwn < 0.025 and pnrr < 0.025:  # P val divided by two due to multiple comparisons
                             nremL.append(n)
                             pvalnr.append(p)
                         else:
-                            mixed.append(n)
-                            pmix.append(p)
+                            if pnrr<0.05:
+                                waknr.append(n)
+                            else:
+                                if pwn<0.05:
+                                    remnr.append(n)
+                            if pnrr>0.05 and pwn>0.05:
+                                mixed.append(n)
+                                pmix.append(p)
 
                     elif (self.activityR[n, :].mean() > self.activityW[n, :].mean()) and (
                                     self.activityR[n, :].mean() > self.activityN[n, :].mean()):
@@ -894,8 +912,14 @@ class MyForm(QMainWindow):
                             remL.append(n)
                             pvalrem.append(p)
                         else:
-                            mixed.append(n)
-                            pmix.append(p)
+                            if pwr<0.05:
+                                remnr.append(n)
+                            else:
+                                if pnrr<0.05:
+                                    wakerem.append(n)
+                        if pwr>0.05 and pnrr>0.05:
+                                mixed.append(n)
+                                pmix.append(p)
                 else:
                     indep.append(n)
                     print('Independent!')
@@ -944,16 +968,15 @@ class MyForm(QMainWindow):
         sizes =[]
         explode = []
         colors =[]
-        colorlist = (0,1,0), 'r', 'b', 'w',(0.5,0.5,0.5)
-        labellist = 'W', 'R', 'NR', 'Mixed', 'Ind'
+        colorlist = (0,1,0), 'r', 'b', (0,1,1),(1,1,0),(1,0,1),'w',(0.5,0.5,0.5)
+        labellist = 'W', 'R', 'NR', 'W-NR','W-REM','REM-NR','Mixed', 'Ind'
         i=0
-        for m in [wakeL,remL, nremL, mixed,indep]:
+        for i,m in enumerate([wakeL,remL, nremL,waknr,wakerem,remnr,mixed,indep]):
             if len(m)>0:
                 labels.append(labellist[i]+ '(N='+str(len(m))+')')
                 sizes.append(100*len(m)/self.Ncells)
                 explode.append(0)
                 colors.append(colorlist[i])
-            i+=1
 
         #To do: add first vs other activity during W
         #self.foa
