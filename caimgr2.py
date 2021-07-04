@@ -22,6 +22,7 @@ import random
 #import matplotlib.image as mpimg
 #import pandas as pd
 import itertools
+import h5py
 
 """If there is EEG, traces need to by synced with EEG. If traces include dropped frames, the they should match 
 the N frames from the mat files, else they should match the nu,ber of detected frames form the sync signal.
@@ -527,6 +528,7 @@ class MyForm(QMainWindow):
             #iv.setImage(mat2plot)
             self.filters = allmatrix
             self.filtpath = Path
+            self.mat2plot=mat2plot
             if self.ui.checkBox.isChecked():
                 self.loadTraces()
 
@@ -548,16 +550,20 @@ class MyForm(QMainWindow):
         if len(fileName) >= 1:
             [id_animal,kk] = fileName.split(".")
             self.ui.label_5.setText(id_animal)
-            f = scipy.io.loadmat(fileName)
-            auxsc=f['sc']
-            self.score=auxsc[0].flatten()
-            self.zt0=f['zt0'][0]
-            print('ZT0:',self.zt0)
-            self.t0 = str(f['t0'][0])#time of first data point
-            print('T0:',self.t0)
-            aux1el=f['epocl']
-            aux2el = aux1el[0]
-            self.epochl = aux2el[0]
+            #f = scipy.io.loadmat(fileName)
+            with h5py.File(fileName, 'r') as f:
+                auxsc=[x[0] for x in np.array(f['sc'])]
+                self.score=auxsc
+                #self.score=auxsc[0].flatten()
+                zt0="".join([chr(value) for value in [x[0] for x in np.array(f['zt0'])]])
+                self.zt0=zt0
+                print('ZT0:',self.zt0)
+                self.t0="".join([chr(value) for value in [x[0] for x in np.array(f['t0'])]])
+                #self.t0 = str(f['t0'][0])#time of first data point
+                print('T0:',self.t0)
+                self.epochl=np.array(f['epocl'])[0][0]#f['epocl']
+            # aux2el = aux1el[0]
+            # self.epochl = aux2el[0]
             #print('Epoch length:',self.epochl)
             plotsc = self.ui.PlotWidget2
             #print(self.starttimes[0])
@@ -565,12 +571,13 @@ class MyForm(QMainWindow):
             #print(edfstart)
             dt = time.mktime(edfstart)
             #print(dt)
+            self.timesscore=[]
             self.timesscore.append(dt)
             for i in range(len(self.score)):
                 if i>0:
                     self.timesscore.append(self.timesscore[i-1]+float(self.epochl))
 
-            print(len(self.timesscore))
+            print('len timescore:',len(self.timesscore))
             #taxis = #time of each epoch//(numpy.arange(len(self.score))) * self.epochl
             plotsc.plot(self.timesscore, self.score)
         #also plotting in the traces window (requires sync)
@@ -960,9 +967,13 @@ class MyForm(QMainWindow):
         plt.axis("off")
         plt.draw()
         ax1 = plt.subplot(grid[0, 1])
-        ax1.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
-                    shadow=False, textprops={'size': 'x-large', 'weight':'bold'}, startangle=90,
+        ax1.pie(sizes, explode=explode, labels=labels, radius=0.6,labeldistance=0.8,colors=colors, autopct='%1.1f%%',
+                    shadow=False, textprops={'weight':'bold'}, startangle=90,
                     wedgeprops={"edgecolor":"k",'linewidth': 1,'antialiased': True})
+        
+        # ax1.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
+        #             shadow=False, textprops={'size': 'x-large', 'weight':'bold'}, startangle=90,
+        #             wedgeprops={"edgecolor":"k",'linewidth': 1,'antialiased': True})
         ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
 
         ax=plt.subplot(grid[0, 2]) #plotting bar plot with the difference in activity for cells who had larger activity during hte first W bout
@@ -975,7 +986,7 @@ class MyForm(QMainWindow):
         bp[0].set_color((0,1,0))
         bp[1].set_color('b')
         bp[2].set_color('r')
-
+        plt.tight_layout()
         # plt.bar([0,1],[self.fwa[faL, :].mean(), self.owa[faL, :].mean()])
         # plt.xticks([0,1], ('Onset W', 'Within W'))
 
