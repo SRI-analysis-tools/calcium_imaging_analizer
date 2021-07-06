@@ -194,50 +194,63 @@ class MyForm(QMainWindow):
 
     def updateFilters(self): #The 3 immputs are vectors with the mean Z scores for the respective state for each cell
         os.chdir(self.filtpath)
-        print(self.filtpath)
+        #print(self.filtpath)
         filelist = os.listdir()
         nelem = 0
         thresf = float(self.ui.lineEdit.text())
         for i in filelist:
-            if i.endswith(".mat"):
-                # print("opening " + i)
-                f = scipy.io.loadmat(self.filtpath + "/" + i)
-                o1 = f['Object']
-                aux = o1['Data']
-                matrixobj = aux[0, 0]
-                matrixobj = matrixobj / matrixobj.max()
-                matrixobj[matrixobj < thresf] = 0  # This needs to be adjusted by hand one by one
-                nrows, ncols = matrixobj.shape
-                kernel = numpy.ones((3, 3))
-                matrixobj = cv2.erode(matrixobj, kernel, iterations=1)
-                if nelem == 0:
-                    monomat = numpy.zeros([len(filelist), nrows, ncols, 3])
-                if len(self.mW) > 1:
-                    monomat[nelem, :, :, :] = numpy.asarray([self.mR[nelem] * (matrixobj.T), self.mW[nelem] * matrixobj.T, self.mN[nelem] * matrixobj.T]).T
-                nelem += 1
+            if self.ui.checkBox_2.isChecked(): #loading tiff files
+                if np.max([c.strip() in i for c in self.colnames]):
+                    im = Image.open(i)
+                    matrixobj = np.array(im)
+                    #print('shapeimg:',matrixobj.shape)
+                    matrixobj = matrixobj / matrixobj.max()
+                    matrixobj[matrixobj < thresf] = 0  # This needs to be adjusted by hand one by one
+                    nrows, ncols = matrixobj.shape
+                    kernel = numpy.ones((3, 3))
+                    matrixobj = cv2.erode(matrixobj, kernel, iterations=1)
+                    if nelem == 0:
+                        monomat = numpy.zeros([len(filelist), nrows, ncols, 3])
+                    if len(self.mW) > 1:
+                        monomat[nelem, :, :, :] = numpy.asarray([self.mR[nelem] * (matrixobj.T), self.mW[nelem] * matrixobj.T, self.mN[nelem] * matrixobj.T]).T
+                    nelem += 1
+
+                else:
+                    print(i,' not having ',self.colnames[0])
+                
+            else:
+                if i.endswith(".mat"):
+                    #print("opening " + i)
+                    f = scipy.io.loadmat(self.filtpath + "/" + i)
+                    o1 = f['Object']
+                    aux = o1['Data']
+                    matrixobj = aux[0, 0]
+                    #print('shapeimg:',matrixobj.shape)
+                    matrixobj = matrixobj / matrixobj.max()
+                    matrixobj[matrixobj < thresf] = 0  # This needs to be adjusted by hand one by one
+                    nrows, ncols = matrixobj.shape
+                    kernel = numpy.ones((3, 3))
+                    matrixobj = cv2.erode(matrixobj, kernel, iterations=1)
+                    if nelem == 0:
+                        monomat = numpy.zeros([len(filelist), nrows, ncols, 3])
+                    if len(self.mW) > 1:
+                        monomat[nelem, :, :, :] = numpy.asarray([self.mR[nelem] * (matrixobj.T), self.mW[nelem] * matrixobj.T, self.mN[nelem] * matrixobj.T]).T
+                    nelem += 1
         maxmat = numpy.amax(monomat, 0)
         colormat = maxmat
         # try to plot it
         #mat2plot = numpy.amax(allmatrix, 0)
         self.mat2plot = 1.4*(colormat / colormat.max())
-        # plt.plot(self.mR)
-        # plt.plot(self.mN)
-        # plt.plot(self.mW)
-        # plt.show()
         self.ui.mpl.canvas.axes.clear()
-        # self.ui.mpl.canvas.axes.plt.imshow(mat2plot)
+        #self.ui.mpl.canvas.axes.plt.imshow(mat2plot)
         self.ui.mpl.canvas.axes.imshow(self.mat2plot)
         self.ui.mpl.canvas.axes.axis("off")
         self.ui.mpl.canvas.draw()
-        #type(colormat)
+        self.Ncells = nelem
+        #iv = self.ui.ImgView
         #iv.setImage(mat2plot)
-        #iv.setImage(colormat)
-        #iv.image(colormat)
         self.filters = colormat
-        #plt.imshow(colormat)
-        #plt.axis("off")
-        #plt.show()
-        print('Filters ready')
+    
 
     def setStart(self):
         #set starts time for the selected period
@@ -254,13 +267,14 @@ class MyForm(QMainWindow):
         print('End time for period {0} = {1}'.format(period, etime))
 
     def loadTraces(self):
-            #self.ui.labelResponse.setText("Hello " + self.ui.lineEditName.text())
-            if self.ui.checkBox.isChecked():
-                print(os.getcwd().rsplit('\\',1))
-                aux1,aux2= os.getcwd().rsplit('\\',1)
-                Path = aux1+'\\traces'
-            else:
-                Path = str(QFileDialog.getExistingDirectory(self, "Select Directory with Traces"))
+            Path = str(QFileDialog.getExistingDirectory(self, "Select Directory with Traces"))
+                #self.ui.labelResponse.setText("Hello " + self.ui.lineEditName.text())
+            # if self.ui.checkBox.isChecked():
+            #     print(os.getcwd().rsplit('\\',1))
+            #     aux1,aux2= os.getcwd().rsplit('\\',1)
+            #     Path = aux1+'\\traces'
+            # else:
+            #     Path = str(QFileDialog.getExistingDirectory(self, "Select Directory with Traces"))
             if len(Path) > 1:
                 os.chdir(Path)
                 #self.ui.label.setText(filen)
@@ -279,8 +293,9 @@ class MyForm(QMainWindow):
                             mydata1=mydata1.loc[:,inc_list]
                             mydata1.columns=self.colnames
                             tracemat=mydata1.values   
-                            print(tracemat.shape)   
+                            print('N points, N cells:',tracemat.shape)   
                             self.nframes=len(tracemat)
+                            tracemat=tracemat.T
                 else:
                     for i in filelist:
                         if i.endswith(".mat"):  # You could also add "and i.startswith('f')
@@ -307,7 +322,7 @@ class MyForm(QMainWindow):
                 self.Traces = tracemat
                 #plt.show()
                 if self.ui.checkBox.isChecked():
-                    self.loadMats()
+                    self.loadFilt()
 
     def loadMats(self):
             self.discardmats=0 #Ignore first 50 mats
@@ -377,6 +392,7 @@ class MyForm(QMainWindow):
                 print("N frames detected from mat or xml files: {0}".format(nframes.sum()))
                 #Normalizing traces from every single concatenated movie by its baseline
                 print(type(self.Traces))
+                print('shape traces',self.Traces.shape)
                 print(nframes.sum())
                 ntr,npts = self.Traces.shape
                 print(ntr,npts)
@@ -409,6 +425,12 @@ class MyForm(QMainWindow):
                                 self.Traces[ti, int(nframes[0:k].sum()):int(nframes[0:k].sum() + i)] = vect
                         k+=1
                     self.Traces[ti, self.Traces[ti, :]<0] = 0
+                    #dividing by std
+                    self.Traces[ti,:]/=np.std(self.Traces[ti,:])
+
+
+                    
+
                 """
                 ti=0
                 #deleting empty traces
@@ -440,6 +462,8 @@ class MyForm(QMainWindow):
                 #plotting traces
                 plotCanv = self.ui.PlotWidget_tr
                 taxis = (numpy.arange(self.nframes)) / self.sr
+                print('taxis:',taxis.shape)
+                print('traces:',self.Traces.shape)
                 plotCanv.clear()
                 for i in range(ntr):
                     plotCanv.plot(taxis, self.Traces[i] + 10 * i, pen=(i, ntr))
@@ -472,8 +496,14 @@ class MyForm(QMainWindow):
                 self.loadScore()
 
     def loadFilt(self):
+        if self.ui.checkBox.isChecked():
+                print(os.getcwd().rsplit('\\',1))
+                aux1,aux2= os.getcwd().rsplit('\\',1)
+                Path = aux1+'\\filters'
+        else:
+            Path = str(QFileDialog.getExistingDirectory(self, "Select Directory with filters"))
         #os.chdir('F:/data2018and2019/nnOS grant/nnos_imaging/mse662_12_ctx_camK')
-        Path = str(QFileDialog.getExistingDirectory(self, "Select Directory with Filters"))
+        #Path = str(QFileDialog.getExistingDirectory(self, "Select Directory with Filters"))
         if len(Path) > 1:
             os.chdir(Path)
             filelist = os.listdir()
@@ -484,7 +514,7 @@ class MyForm(QMainWindow):
                     if np.max([c.strip() in i for c in self.colnames]):
                         im = Image.open(i)
                         matrixobj = np.array(im)
-                        print('shapeimg:',matrixobj.shape)
+                        #print('shapeimg:',matrixobj.shape)
                         matrixobj = matrixobj / matrixobj.max()
                         matrixobj[matrixobj < thresf] = 0  # This needs to be adjusted by hand one by one
                         nrows, ncols = matrixobj.shape
@@ -505,7 +535,7 @@ class MyForm(QMainWindow):
                         o1 = f['Object']
                         aux = o1['Data']
                         matrixobj = aux[0, 0]
-                        print('shapeimg:',matrixobj.shape)
+                        #print('shapeimg:',matrixobj.shape)
                         matrixobj = matrixobj / matrixobj.max()
                         matrixobj[matrixobj < thresf] = 0  # This needs to be adjusted by hand one by one
                         nrows, ncols = matrixobj.shape
@@ -530,7 +560,7 @@ class MyForm(QMainWindow):
             self.filtpath = Path
             self.mat2plot=mat2plot
             if self.ui.checkBox.isChecked():
-                self.loadTraces()
+                    self.loadMats()
 
 
     def loadScore(self):
@@ -614,6 +644,7 @@ class MyForm(QMainWindow):
             if self.ui.checkBox_3.isChecked():
                 plt.figure()
                 plt.plot(sync)
+                plt.show()
             self.EEG =numpy.asarray(edf.get_data(0).flatten())
             midpoint =0.3 *(sync.max() + sync.min())
             shiftsync, aux0 = numpy.zeros(len(sync)), numpy.zeros(len(sync))
@@ -643,10 +674,14 @@ class MyForm(QMainWindow):
             #plt.scatter(imgTimes, vones, marker='.')
             plotsc = self.ui.PlotWidget2
             #plotsc.clear()
-            #plotsc.plot(edf.times + self.timesscore[0], sync)
-            #plotsc.plot(imgTimes, vones, pen=None, symbol='o',symbolPen='r', symbolSize=4)
-            #plotsc.plot(imgendTimes, vonese, pen=None, symbol='s', symbolPen='b', symbolSize=4)
-            #plt.show()
+            # plotsc.plot(edf.times + self.timesscore[0], sync)
+            # plotsc.plot(imgTimes, vones, pen=None, symbol='o',symbolPen='r', symbolSize=4)
+            # plotsc.plot(imgendTimes, vonese, pen=None, symbol='s', symbolPen='b', symbolSize=4)
+            # plt.figure()
+            # plt.plot(edf.times + self.timesscore[0], sync)
+            # plt.plot(imgTimes, vones, 'o')
+            # plt.plot(imgendTimes, vonese, 's')
+            # plt.show()
 
             print("Done.")
             print("N frames detected from onset:{0}".format(len(imgTimes)))
@@ -854,6 +889,7 @@ class MyForm(QMainWindow):
         pmix=[]
         lfwa1 = int(len(self.fwa)/2)
         lowa1 = int(len(self.owa)/2)
+        pref_state=[]
         isrem=False
 
         if len(self.activityR[1, :]) > 1:
@@ -879,16 +915,20 @@ class MyForm(QMainWindow):
                         
                         if pwn<0.025 and pwr<0.025: #P val divided by two due to multiple comparisons
                             wakeL.append(n)
+                            pref_state.append('W')
                             pvalw.append(p)
                         else:
                             #could be warem or wanr
                             if pwn<0.05:
                                 wakerem.append(n)
+                                pref_state.append('W-REM')
                             else:
                                 if pwr<0.05:
                                     waknr.append(n)
+                                    pref_state.append('W-NR')
                             if pwr>0.05 and pwn>0.05:
                                 mixed.append(n)
+                                pref_state.append('W-Mix')
                                 pmix.append(p)
                     #largest activity for NR 
                     elif (self.activityN[n, :].mean() > self.activityW[n, :].mean()) and (
@@ -896,33 +936,42 @@ class MyForm(QMainWindow):
                         if pwn < 0.025 and pnrr < 0.025:  # P val divided by two due to multiple comparisons
                             nremL.append(n)
                             pvalnr.append(p)
+                            pref_state.append('NR')
                         else:
                             if pnrr<0.05:
                                 waknr.append(n)
+                                pref_state.append('NR-W')
                             else:
                                 if pwn<0.05:
                                     remnr.append(n)
+                                    pref_state.append('NR-REM')
                             if pnrr>0.05 and pwn>0.05:
                                 mixed.append(n)
                                 pmix.append(p)
+                                pref_state.append('NR-Mix')
 
                     elif (self.activityR[n, :].mean() > self.activityW[n, :].mean()) and (
                                     self.activityR[n, :].mean() > self.activityN[n, :].mean()):
                         if pwr<0.025 and pnrr<0.025: #P val divided by two due to multiple comparisons
                             remL.append(n)
                             pvalrem.append(p)
+                            pref_state.append('REM')
                         else:
                             if pwr<0.05:
                                 remnr.append(n)
+                                pref_state.append('REM-NR')
                             else:
                                 if pnrr<0.05:
                                     wakerem.append(n)
+                                    pref_state.append('REM-W')
                         if pwr>0.05 and pnrr>0.05:
                                 mixed.append(n)
                                 pmix.append(p)
+                                pref_state.append('REM-Mix')
                 else:
                     indep.append(n)
                     print('Independent!')
+                    pref_state.append('Ind')
                     pvalind.append(p)
                 F, p1 = stats.f_oneway(self.fwa[n,0:lfwa1],self.owa[n,0:lowa1]) # Checking only the first half ogf the data
                 F, p2 = stats.f_oneway(self.fwa[n, lfwa1:],
@@ -942,10 +991,13 @@ class MyForm(QMainWindow):
                     k0+=1
                     if (self.activityW[n,:].mean()>self.activityN[n,:].mean()):
                         wakeL.append(n)
+                        pref_state.append('W')
                     else:
                         nremL.append(n)
+                        pref_state.append('NR')
                 else:
                     indep.append(n)
+                    pref_state.append('Ind')
                 #Checking the activity at onset
                 F, p1 = stats.f_oneway(self.fwa[n,0:lfwa1],self.owa[n,0:lowa1]) # Checking only the first half ogf the data
                 F, p2 = stats.f_oneway(self.fwa[n, lfwa1:],
@@ -957,9 +1009,9 @@ class MyForm(QMainWindow):
                         faS.append(n)
                 else:
                     oaL.append(n)
-        print("percentage of active cells at onset: ",100*len(faL)/self.Ncells)
-        print("percentage of less active cells at onset: ", 100 * len(faS) / self.Ncells)
-        print("percentage of cells indifferent to onset: ", 100 * len(oaL) / self.Ncells)
+        # print("percentage of active cells at onset: ",100*len(faL)/self.Ncells)
+        # print("percentage of less active cells at onset: ", 100 * len(faS) / self.Ncells)
+        # print("percentage of cells indifferent to onset: ", 100 * len(oaL) / self.Ncells)
         #mixed = wakeS +nremS +remS
         if len(wakeL +nremL +remL +mixed +indep ) != self.Ncells:
             print("missing cells!!")
@@ -1009,23 +1061,25 @@ class MyForm(QMainWindow):
         bp[0].set_color((0,1,0))
         bp[1].set_color('b')
         bp[2].set_color('r')
-        plt.tight_layout()
+        #plt.tight_layout()
         # plt.bar([0,1],[self.fwa[faL, :].mean(), self.owa[faL, :].mean()])
         # plt.xticks([0,1], ('Onset W', 'Within W'))
 
 
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
-        plt.tight_layout()
         #plt.box(on=None)
         ax = plt.subplot(grid[1, 0:])
         #now plotting hypnogram and traces
 
         tracecol = 1.4* numpy.asarray([self.mR.T, self.mW.T, self.mN.T])
         tracecol = tracecol/tracecol.max()
-        tscore =[t*self.epochl for t in range(len(self.chunk_score))]
+        tscore =np.array([t*self.epochl for t in range(len(self.chunk_score))])
         taxis = (numpy.arange(self.nframes)) / self.sr
-        plt.plot(tscore, self.chunk_score*4.5)
+        plt.plot(tscore/3600, self.chunk_score*4.5)
+        plt.xlabel('Time (h)',fontsize=15)
+        locs, labels = plt.yticks() 
+        plt.yticks([0,4.5,9], ['W', 'NR', 'REM'])  # Set text labels.
         #adding the typical best for every class:
         indxt = []#numpy.arange(self.Ncells)
         if len(pvalw)>0:
@@ -1059,12 +1113,12 @@ class MyForm(QMainWindow):
             indxt.append(indep[pvalind.index(min(pvalind))])
 
         for n,i in enumerate(indxt):
-            plt.plot(taxis, self.Traces[i,:] + 10 * (n+1),linewidth=0.5,color=tuple(tracecol[:,i]))
+            plt.plot(taxis/3600, self.Traces[i,:] + 10 * (n+1),linewidth=0.5,color=tuple(tracecol[:,i]))
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         ax.spines['left'].set_visible(False)
-        ax.tick_params(left=False)
-        ax.tick_params(labelleft=False)
+        #ax.tick_params(left=False)
+        #ax.tick_params(labelleft=False)
         #plt.box(on=None)
         #ax.set_frame_on(False)
         #ax.add_axes([0., 1., 1., 0])
@@ -1072,6 +1126,15 @@ class MyForm(QMainWindow):
         #ax.get_xaxis().set_visible(True)
         #ax.get_yaxis().set_visible(False)
         plt.show()
+        #Make dataframe with summary ctivity of each cell and saveit as CSV
+        #Mean activity for ech state and preference
+        df = pd.DataFrame(columns=['Cell_ID','Experiment','Duration','hasREM','W_activity','NR_activity','REM_activity','Preference'])
+        for n in ncells_list:
+            df.loc[n]=[n,self.ui.label_5.text(),(self.timeTraces[-1]-self.timeTraces[0])/60,isrem,np.mean(self.activityW[n,:]),
+                np.mean(self.activityN[n,:]),np.mean(self.activityR[n,:]),pref_state[n]]
+        df.to_csv(self.ui.label_5.text()+'.csv',index=False)
+        print('Summary saved in '+self.ui.label_5.text()+'.csv')
+
         """
         
         plotCanv.clear()
