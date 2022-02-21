@@ -18,7 +18,7 @@ type:
 pip -r install requirements.txt
 
 To execute:
-python caimgrpqtg.py
+python caimgr2.py
 
 if you have pyhton2 as default, replace python by python3
 
