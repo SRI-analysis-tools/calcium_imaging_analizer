@@ -70,7 +70,7 @@ dfpop=pd.DataFrame(columns=['Normalized_DF','state'])
 dfpop.Normalized_DF=listW+listREM+listNR
 dfpop.state = ['W']*len(listW) + ['R']*len(listREM) + ['NR']*len(listNR)
 
-dfpop.to_csv('Normalized_dF.csv')
+dfpop.to_csv('Normalized_dF.csv',index=False)
 plt.show()
 
 
