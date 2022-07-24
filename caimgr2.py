@@ -862,6 +862,7 @@ class MyForm(QMainWindow):
 
     def saveAll(self):
         #making data frame with the Z scores of every cell for every state, assuming 1 period
+        #For mse 105_2 plt: 51 for NREM, 47 for REM and 24 for W
         #For each cell we need a table with the Zscore of an epoch and it's state
         mat_aux=[]
         k0=1
@@ -1061,11 +1062,9 @@ class MyForm(QMainWindow):
         bp[0].set_color((0,1,0))
         bp[1].set_color('b')
         bp[2].set_color('r')
-        #plt.tight_layout()
+        plt.tight_layout()
         # plt.bar([0,1],[self.fwa[faL, :].mean(), self.owa[faL, :].mean()])
         # plt.xticks([0,1], ('Onset W', 'Within W'))
-
-
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         #plt.box(on=None)
@@ -1076,7 +1075,7 @@ class MyForm(QMainWindow):
         tracecol = tracecol/tracecol.max()
         tscore =np.array([t*self.epochl for t in range(len(self.chunk_score))])
         taxis = (numpy.arange(self.nframes)) / self.sr
-        plt.plot(tscore/3600, self.chunk_score*4.5)
+        plt.plot(tscore/3600, self.chunk_score*4.5,'k-')
         plt.xlabel('Time (h)',fontsize=15)
         locs, labels = plt.yticks() 
         plt.yticks([0,4.5,9], ['W', 'NR', 'REM'])  # Set text labels.
@@ -1111,7 +1110,7 @@ class MyForm(QMainWindow):
             indxt.append(indep[pvalind.index(min(pvalind))])
             pvalind[pvalind.index(min(pvalind))]=100
             indxt.append(indep[pvalind.index(min(pvalind))])
-
+        indxt=[24,51,47,48]
         for n,i in enumerate(indxt):
             plt.plot(taxis/3600, self.Traces[i,:] + 10 * (n+1),linewidth=0.5,color=tuple(tracecol[:,i]))
         ax.spines['right'].set_visible(False)
@@ -1125,6 +1124,7 @@ class MyForm(QMainWindow):
         #ax = plt.axes([0, 1., 0, 1.])
         #ax.get_xaxis().set_visible(True)
         #ax.get_yaxis().set_visible(False)
+        plt.tight_layout()
         plt.show()
         #Make dataframe with summary ctivity of each cell and saveit as CSV
         #Mean activity for ech state and preference
