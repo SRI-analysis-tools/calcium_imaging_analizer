@@ -433,7 +433,7 @@ class MyForm(QMainWindow):
             k = 0
             for i in range(len(imgendTimes)-1):#The last one will be made by hand
                     if imgTimes[i+1] - imgTimes[i] > difimg:
-                        offtimes[k] = imgendTimes[i]
+                        offtimes[k] = imgendTifpiemes[i]
                         k += 1
             offtimes[k] = imgendTimes[-1]
             print('nmovies from offtimes:', k + 1)
