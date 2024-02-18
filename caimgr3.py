@@ -23,7 +23,7 @@ import random
 #import pandas as pd
 import itertools
 import h5py
-
+plt.rcParams['font.family'] = 'Arial'
 """If there is EEG, traces need to by synced with EEG. If traces include dropped frames, the they should match 
 the N frames from the mat files, else they should match the nu,ber of detected frames form the sync signal.
 A vector with the time of each frame will be generated, matching the EEG time of the first frame in every chunk.
@@ -298,11 +298,11 @@ class MyForm(QMainWindow):
                 #try to plot it
                 print("N frames detected from traces:{0}".format(self.nframestr))
                 taxis=(numpy.arange(self.nframestr))/self.srtr
-                #ax=plt.figure()
-                #plotCanv.clear()
-                #for i in range(len(filelist)):
-                #    plt.plot(taxis, tracemat[i]+10*i)
-                    #plotCanv.plot(taxis, tracemat[i]+10*i, pen=(i, nelem))
+                ax=plt.figure()
+                plotCanv.clear()
+                for i in range(len(filelist)):
+                    #plt.plot(taxis, tracemat[i]+10*i)
+                    plotCanv.plot(taxis, tracemat[i]+10*i, pen=(i, nelem))
                     #plotCanv.plot(tracemat[i] + 10 * i, pen=(i, nelem))
                 self.Traces = tracemat
                 #plt.show()
@@ -373,15 +373,17 @@ class MyForm(QMainWindow):
                                 #dt = time.asctime(aux)
                                 self.endtimes.append(dt)
                         nelem += 1
-                print("N frames detected from mat or xml files: {0}".format(nframes.sum()))
+                #print("N frames detected from mat or xml files: {0}".format(nframes.sum()))
                 self.srmats=nframes.sum()/np.sum(np.array(self.endtimes)-np.array(self.starttimes))
                 #Normalizing traces from every single concatenated movie by its baseline
-                print(type(self.Traces))
-                print('shape traces',self.Traces.shape)
-                print(nframes.sum())
+                #print(type(self.Traces))
+                #print('shape traces',self.Traces.shape)
+                #print(nframes.sum())
+                self.nframes = nframes
                 ntr,npts = self.Traces.shape
-                print(ntr,npts)
+                #print(ntr,npts)
                 self.nframes_from_mats = nframes
+                
                 ntraceschunk = npts// 2 * 60 * self.srmats  # numbers of chunks to adjust the baseline
                 #Conditioning the traces (baseline and median filter for each movie chunk
 
@@ -416,13 +418,18 @@ class MyForm(QMainWindow):
                 #meancorr = []
                 #list_comb = tuple(itertools.combinations(range(ntr),2))
                 #plotting traces
+                print(f'dim traces:{self.Traces.shape}')
                 plotCanv = self.ui.PlotWidget_tr
-                taxis = (numpy.arange(nframes)) / self.srtr
+                
                 # print('taxis:',taxis.shape)
                 # print('traces:',self.Traces.shape)
                 plotCanv.clear()
                 for i in range(ntr):
-                    plotCanv.plot(taxis, self.Traces[i] + 10 * i, pen=(i, ntr))
+                    taxis = (numpy.arange(numpy.sum(nframes))) / self.srtr
+                    if len(taxis)==len(self.Traces[i]):
+                        plotCanv.plot(taxis, self.Traces[i] + 10 * i, pen=(i, ntr))
+                    else:
+                        print(f'len(taxis):{len(taxis)}, len(trace)={len(self.Traces[i])}')
                 #plot timings in hypnogram
                 plotsc = self.ui.PlotWidget2
                 vones = numpy.ones(numpy.shape(self.starttimes[self.discardmats:])) * 2.5
@@ -430,22 +437,22 @@ class MyForm(QMainWindow):
                 plotsc.plot(self.endtimes[self.discardmats:], vones, pen=None, symbol='o', symbolPen=None, symbolSize=5, symbolBrush=(0,220,0))
 
                 #making isolated plot:
-                plt.figure()
-                plt.rcParams['font.size'] = 14
-                ax=plt.subplot(1,1,1)
-                #plt.subplot(2,1,1)
-                for tri in range(10):
-                    plt.plot(taxis, self.Traces[tri,:]+ 10 * tri,linewidth=0.5)
-                ax.spines['right'].set_visible(False)
-                ax.spines['top'].set_visible(False)
-                ax.spines['left'].set_visible(False)
-                ax.tick_params(left=False)
-                ax.tick_params(labelleft=False)
-                plt.ylabel('Z-Score')
-                plt.xlabel('Time (s)')
-                #plt.subplot(2, 1, 2)
-                #plt.plot(range(len(meancorr)),meancorr,'ko-')
-                plt.show()
+                # plt.figure()
+                # plt.rcParams['font.size'] = 14
+                # ax=plt.subplot(1,1,1)
+                # #plt.subplot(2,1,1)
+                # for tri in range(10):
+                #     plt.plot(taxis, self.Traces[tri,:]+ 10 * tri,linewidth=0.5)
+                # ax.spines['right'].set_visible(False)
+                # ax.spines['top'].set_visible(False)
+                # ax.spines['left'].set_visible(False)
+                # ax.tick_params(left=False)
+                # ax.tick_params(labelleft=False)
+                # plt.ylabel('Z-Score')
+                # plt.xlabel('Time (s)')
+                # #plt.subplot(2, 1, 2)
+                # #plt.plot(range(len(meancorr)),meancorr,'ko-')
+                # plt.show()
                 #os.chdir('..')
                 #pickle.dump([taxis, self.Traces.mean(axis=0),meancorr ], open("save.p", "wb"))"""
             if self.ui.checkBox.isChecked():
@@ -649,7 +656,7 @@ class MyForm(QMainWindow):
                 print('ERROR: Problem in the detection of on  and off times')
             if len(self.starttimes) != len(ontimes):
                 print('ERROR: Mismatch between startimes (mats) and ontimes (sync)')
-            if self.nframes != self.nframes_from_mats.sum():
+            if np.sum(self.nframes) != self.nframes_from_mats.sum():
                 print('ERROR: Mismatch between nframes traaces and info in mat files')
             #identifying chunks in the hypnogram
             chunk_times_score =[]
@@ -666,8 +673,8 @@ class MyForm(QMainWindow):
             plotsc.plot(ontimes, voneson, pen=None, symbol='o', symbolPen='k', symbolSize=4)
             plotsc.plot(offtimes, vonesoff, pen=None, symbol='s', symbolPen='m', symbolSize=4)
             """Make a time vector with the same number of point than the Ca traces, aligned with the EEG timing."""
-            self.timeTraces = numpy.zeros(self.nframes)
-            print(self.nframes_from_mats[0])
+            self.timeTraces = numpy.zeros(int(np.sum(self.nframes)))
+            #print(self.nframes_from_mats[0])
             #idetifiying time points corresponding to first w epoch
             indxfw = []
             indxow = []
@@ -970,46 +977,58 @@ class MyForm(QMainWindow):
 
         tracecol = 1.4* numpy.asarray([self.mR.T, self.mW.T, self.mN.T])
         tracecol = tracecol/tracecol.max()
-        tscore =np.array([t*self.epochl for t in range(len(self.chunk_score))])
-        taxis = (numpy.arange(self.nframes)) / self.srtr
-        plt.plot(tscore/3600, self.chunk_score*4.5)
-        plt.xlabel('Time (h)',fontsize=15)
+        tscore =self.epochl * numpy.arange(len(self.chunk_score))/3600
+        #taxis = (numpy.arange(np.sum(self.nframes))) / self.srtr
+        #tscore = numpy.linspace(0,taxis[-1]/3600,len(self.chunk_score))
+        print('tscore:',tscore[-5:])
+        taxis = numpy.linspace(0,int(tscore[-1]),int(numpy.sum(self.nframes)))
+        print(taxis[0:5])
+        print(taxis[-5:])
+        #print(taxis)
+        plt.plot(tscore, numpy.round(self.chunk_score)*4.5,'k-')
+        plt.xlabel('Time (h)',fontsize=20)
         locs, labels = plt.yticks() 
         plt.yticks([0,4.5,9], ['W', 'NR', 'REM'])  # Set text labels.
+        plt.grid(axis='y')
         #adding the typical best for every class:
         indxt = []#numpy.arange(self.Ncells)
-        if len(pvalw)>0:
-            indxt.append(wakeL[pvalw.index(min(pvalw))])
-            pvalw[pvalw.index(min(pvalw))]=100
-            indxt.append(wakeL[pvalw.index(min(pvalw))])
-            pvalw[pvalw.index(min(pvalw))] = 100
-            indxt.append(wakeL[pvalw.index(min(pvalw))])
-            #pvalw[pvalw.index(min(pvalw))] = 100
-            #indxt.append(wakeL[pvalw.index(min(pvalw))])
-        if len(pvalrem)>0:
-            indxt.append(remL[pvalrem.index(min(pvalrem))])
-            pvalrem[pvalrem.index(min(pvalrem))]=100
-            indxt.append(remL[pvalrem.index(min(pvalrem))])
+        indxt.append(numpy.argmax(numpy.mean(self.activityW,axis=1)))
+        indxt.append(numpy.argmax(numpy.mean(self.activityR,axis=1)))
+        indxt.append(numpy.argmax(numpy.mean(self.activityN,axis=1)))
+        # if len(pvalw)>0:
+        #     indxt.append(wakeL[pvalw.index(min(pvalw))])
+        #     # pvalw[pvalw.index(min(pvalw))]=100
+        #     # indxt.append(wakeL[pvalw.index(min(pvalw))])
+        #     # pvalw[pvalw.index(min(pvalw))] = 100
+        #     # indxt.append(wakeL[pvalw.index(min(pvalw))])
+        #     #pvalw[pvalw.index(min(pvalw))] = 100
+        #     #indxt.append(wakeL[pvalw.index(min(pvalw))])
+        # if len(pvalrem)>0:
+        #     indxt.append(remL[pvalrem.index(min(pvalrem))])
+        #     # pvalrem[pvalrem.index(min(pvalrem))]=100
+        #     # indxt.append(remL[pvalrem.index(min(pvalrem))])
            
-        if len(pvalnr)>0:
-            indxt.append(nremL[pvalnr.index(min(pvalnr))])
+        # if len(pvalnr)>0:
+        #     indxt.append(nremL[pvalnr.index(min(pvalnr))])
             #pvalnr[pvalnr.index(min(pvalnr))]=100
             #indxt.append(nremL[pvalnr.index(min(pvalnr))])
-        if len(pmix)>0:
-            indxt.append(mixed[pmix.index(min(pmix))])
-            pmix[pmix.index(min(pmix))] = 100
-            indxt.append(mixed[pmix.index(min(pmix))])
+        # if len(pmix)>0:
+        #     indxt.append(mixed[pmix.index(min(pmix))])
+        #     pmix[pmix.index(min(pmix))] = 100
+        #     indxt.append(mixed[pmix.index(min(pmix))])
 
-        if len(pvalind)>0:
-            indxt.append(indep[pvalind.index(min(pvalind))])
-            pvalind[pvalind.index(min(pvalind))]=100
-            indxt.append(indep[pvalind.index(min(pvalind))])
+        # if len(pvalind)>0:
+        #     indxt.append(indep[pvalind.index(min(pvalind))])
+        #     pvalind[pvalind.index(min(pvalind))]=100
+        #     indxt.append(indep[pvalind.index(min(pvalind))])
 
         for n,i in enumerate(indxt):
-            plt.plot(taxis/3600, self.Traces[i,:] + 10 * (n+1),linewidth=0.5,color=tuple(tracecol[:,i]))
+            plt.plot(taxis*tscore[-1], self.Traces[i,:] + 10 * (n+1),linewidth=0.5,color=tuple(tracecol[:,i]))
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         ax.spines['left'].set_visible(False)
+        plt. ylabel ('Z-Score',fontsize=20)
+        plt.show()
         df = pd.DataFrame(columns=['Cell_ID','Experiment','Duration','hasREM','W_activity','NR_activity','REM_activity','Preference'])
         for n in ncells_list:
             df.loc[n]=[n,self.ui.label_5.text(),(self.timeTraces[-1]-self.timeTraces[0])/60,isrem,np.mean(self.activityW[n,:]),
