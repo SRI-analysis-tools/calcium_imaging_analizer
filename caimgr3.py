@@ -28,7 +28,7 @@ import h5py
 the N frames from the mat files, else they should match the nu,ber of detected frames form the sync signal.
 A vector with the time of each frame will be generated, matching the EEG time of the first frame in every chunk.
 Convert ui with pyuic5 demoLineEdit.ui -o demoLineEdit.py"""
-
+SF_TRACES=5 #usually 15 fps
 #auxilliary functions and classes:
 def ampfun(data, ampFactor):  # function that amplifies a signalwith low temporal res
     data = data.flatten()
@@ -136,7 +136,7 @@ class MyForm(QMainWindow):
         self.Score=[]
         self.meanZscore=[] #Mean z score for each period
         self.zsc=[] #Mean z score for each period for each cell
-        self.sr=15
+        self.srtr=5
         self.filtpath=''
         self.filtfn = ''
         self.timesscore=[]
@@ -165,25 +165,7 @@ class MyForm(QMainWindow):
         self.starttimesdict={1:''}
         self.endtimesdict = {1: ''}
         self.ui.mpl.setStyleSheet("background-color:black;")
-        """
-        fs = 500
-        f = random.randint(1, 100)
-        ts = 1 / fs
-        length_of_signal = 100
-        t = numpy.linspace(0, 1, length_of_signal)
 
-        cosinus_signal = numpy.cos(2 * numpy.pi * f * t)
-        sinus_signal = numpy.sin(2 * numpy.pi * f * t)
-
-        self.ui.mpl.canvas.axes.clear()
-        #self.ui.mpl.canvas.axes.tight_layout()
-        aux = self.ui.mpl.canvas.axes.plot(t, cosinus_signal)
-        self.ui.mpl.canvas.axes.plot(t, sinus_signal)
-        self.ui.mpl.canvas.axes.legend(('cosinus', 'sinus'), loc='upper right')
-        self.ui.mpl.canvas.axes.set_title('Cosinus - Sinus Signal')
-        #aux[0].tight_layout()
-        self.ui.mpl.canvas.draw()
-        """
         self.ui.mpl.canvas.axes.axis("off")
         self.mW,self.mN,self.mR = [0],[0],[0]
         #make_triangle(400)
@@ -220,6 +202,7 @@ class MyForm(QMainWindow):
                     if len(self.mW) > 1:
                         monomat[nelem, :, :, :] = numpy.asarray([self.mR[nelem] * (matrixobj.T), self.mW[nelem] * matrixobj.T, self.mN[nelem] * matrixobj.T]).T
                     nelem += 1
+                #Skipping rejected cells
             else:
                 if i.endswith(".mat"):
                     #print("opening " + i)
@@ -296,7 +279,7 @@ class MyForm(QMainWindow):
                             mydata1.columns=self.colnames
                             tracemat=mydata1.values   
                             print('N points, N cells:',tracemat.shape)   
-                            self.nframes=len(tracemat)
+                            self.nframestr=len(tracemat)
                             tracemat=tracemat.T
                 else:
                     for i in filelist:
@@ -307,14 +290,14 @@ class MyForm(QMainWindow):
                             aux2=aux[0]
                             trace=aux2[0].flatten()
                             #Trace conditioning will be done in the mat file reading part 2-min basis
-                            self.nframes=trace.size #number of total frames in video
+                            self.nframestr=trace.size #number of total frames in video
                             if nelem == 0:
-                                tracemat = numpy.zeros([len(filelist),self.nframes])
+                                tracemat = numpy.zeros([len(filelist),self.nframestr])
                             tracemat[nelem, :] = trace
                             nelem += 1
                 #try to plot it
-                print("N frames detected from traces:{0}".format(self.nframes))
-                taxis=(numpy.arange(self.nframes))/self.sr
+                print("N frames detected from traces:{0}".format(self.nframestr))
+                taxis=(numpy.arange(self.nframestr))/self.srtr
                 #ax=plt.figure()
                 #plotCanv.clear()
                 #for i in range(len(filelist)):
@@ -390,8 +373,8 @@ class MyForm(QMainWindow):
                                 #dt = time.asctime(aux)
                                 self.endtimes.append(dt)
                         nelem += 1
-                nframes=nframes
                 print("N frames detected from mat or xml files: {0}".format(nframes.sum()))
+                self.srmats=nframes.sum()/np.sum(np.array(self.endtimes)-np.array(self.starttimes))
                 #Normalizing traces from every single concatenated movie by its baseline
                 print(type(self.Traces))
                 print('shape traces',self.Traces.shape)
@@ -399,7 +382,7 @@ class MyForm(QMainWindow):
                 ntr,npts = self.Traces.shape
                 print(ntr,npts)
                 self.nframes_from_mats = nframes
-                ntraceschunk = npts// 2 * 60 * self.sr  # numbers of chunks to adjust the baseline
+                ntraceschunk = npts// 2 * 60 * self.srmats  # numbers of chunks to adjust the baseline
                 #Conditioning the traces (baseline and median filter for each movie chunk
 
                 # plotCanv.plot(taxis, tracemat[i]+10*i, pen=(i, nelem))
@@ -429,43 +412,14 @@ class MyForm(QMainWindow):
                     self.Traces[ti, self.Traces[ti, :]<0] = 0
                     #dividing by std
                     self.Traces[ti,:]/=np.std(self.Traces[ti,:])
-
-
-                    
-
-                """
-                ti=0
-                #deleting empty traces
-                print(self.Traces.shape)
-                while ti<self.Traces.shape[0]:
-                    if self.Traces[ti, :].max() < 0.0000001:
-                        self.Traces=numpy.delete(self.Traces, (ti), axis=0)
-                        ti=0
-                    else:
-                        ti+=1
-                print(self.Traces.shape)
-                ntr, npts = self.Traces.shape
-                self.Ncells=self.Traces.shape[0]"""
                 #getting the pairwise correlation among all traces for each movie:
                 #meancorr = []
                 #list_comb = tuple(itertools.combinations(range(ntr),2))
-                """#print(list_comb)
-                for n,i in enumerate(nframes):
-                    index = numpy.arange(int(sum(nframes[0:n])),int(sum(nframes[0:n+1])))
-                    for x, y in list_comb:
-                        if (self.Traces[x, index].max()>0.0000000001 and self.Traces[y, index].max()) > 0.000000001:
-                            popcor=numpy.asarray(numpy.corrcoef(self.Traces[x,index],self.Traces[y,index])[0,1])
-                            if numpy.isnan(popcor):
-                                print('nan detected',self.Traces[x, index].max(),self.Traces[y, index].max())
-                    print(n)
-                    meancorr.append(popcor.mean())
-
-                    #print(n, numpy.asarray(popcor).mean())"""
                 #plotting traces
                 plotCanv = self.ui.PlotWidget_tr
-                taxis = (numpy.arange(self.nframes)) / self.sr
-                print('taxis:',taxis.shape)
-                print('traces:',self.Traces.shape)
+                taxis = (numpy.arange(nframes)) / self.srtr
+                # print('taxis:',taxis.shape)
+                # print('traces:',self.Traces.shape)
                 plotCanv.clear()
                 for i in range(ntr):
                     plotCanv.plot(taxis, self.Traces[i] + 10 * i, pen=(i, ntr))
@@ -527,8 +481,7 @@ class MyForm(QMainWindow):
                         allmatrix[nelem, :, :] = matrixobj
                         nelem += 1
 
-                    else:
-                        print(i,' not having ',self.colnames[0])
+                    
                     
                 else:
                     if i.endswith(".mat"):
@@ -564,9 +517,7 @@ class MyForm(QMainWindow):
             if self.ui.checkBox.isChecked():
                     self.loadMats()
 
-
     def loadScore(self):
-
         if self.ui.checkBox.isChecked():
             os.chdir("../EDF")
             #looks in the current folder for the first .mat file and uses that as the score
@@ -675,16 +626,6 @@ class MyForm(QMainWindow):
             #print(type(sync))
             #plt.scatter(imgTimes, vones, marker='.')
             plotsc = self.ui.PlotWidget2
-            #plotsc.clear()
-            # plotsc.plot(edf.times + self.timesscore[0], sync)
-            # plotsc.plot(imgTimes, vones, pen=None, symbol='o',symbolPen='r', symbolSize=4)
-            # plotsc.plot(imgendTimes, vonese, pen=None, symbol='s', symbolPen='b', symbolSize=4)
-            # plt.figure()
-            # plt.plot(edf.times + self.timesscore[0], sync)
-            # plt.plot(imgTimes, vones, 'o')
-            # plt.plot(imgendTimes, vonese, 's')
-            # plt.show()
-
             print("Done.")
             print("N frames detected from onset:{0}".format(len(imgTimes)))
             print("N frames detected from offset:{0}".format(len(imgendTimes)))
@@ -795,15 +736,6 @@ class MyForm(QMainWindow):
                         self.traces_NR = numpy.concatenate((self.traces_NR,self.Traces[:, index]),axis=1)
                     else:
                         self.traces_NR = self.Traces[:, index]
-
-                #Now getting the EEG parts that fall in the time limit
-                # indexeeg = (newEDFt >= t) & (newEDFt < (t + self.epochl))
-                # if indexeeg.max():
-                #     swa.append(get_delta(self.EEG[indexeeg],sf_EEG))
-                #     if len(self.EEG_NR)>0:
-                #         self.EEG_NR = numpy.concatenate((self.EEG_NR,self.EEG[indexeeg]))
-                #     else:
-                #         self.EEG_NR = self.EEG[indexeeg]
                 c += 1
             c = 0
 
@@ -815,45 +747,7 @@ class MyForm(QMainWindow):
                     self.activityR[:, c] = 0
                 c += 1
             self.activityR[self.activityR == -1] = 0
-            print('Meancorr=',meancorr)
-            print('SWA=',swa)
-            # f=plt.figure(1)
-            # plt.subplot(2,1,1)
-            # print(self.sr)
-            # teeg= numpy.arange(0,len(self.EEG_NR))/sf_EEG
-            # print(self.traces_NR.shape)
-            # ttraces = numpy.arange(0,self.traces_NR.shape[1])/15
-            # plt.plot(teeg,self.EEG_NR)
-            # #plt.xlim((1630,1631))
-            # plt.subplot(2, 1, 2)
-            # plt.plot(ttraces,self.traces_NR.sum(axis=0))
-            # plt.plot(ttraces, self.traces_NR.T)
-            # #plt.xlim((1630,1631))
-            # f.show()
-            #g = plt.figure()
-            #xvect=numpy.arange(len(meancorr))*self.epochl
-            #f=open('mcorr.txt','w')
-            #f.write(",".join([str(v) for v in list(meancorr)]))
-            #f.close()
-            #f = open('times.txt', 'w')
-            #f.write(",".join([str(v) for v in list(timeN-timeN[0])]))
-            #f.close()
-
-            #plt.plot(timeN,meancorr)
-            #print(numpy.corrcoef(meancorr,swa))
-            #plotCanv = self.ui.PlotWidget_tr
-            #plotCanv.clear()
-            #for i in range(len(self.Traces)):
-            #    plotCanv.plot(self.timeTraces, self.Traces[i] + 10 * i, pen=(i, len(self.Traces)))
-            # #plotCanv.plot(chunk_times_score, chunk_score *10, pen='k')
-            # plt.plot(self.activityW[1,:])
-            # plt.plot(self.activityN[1,:])
-            # plt.plot(self.activityR[1,:])
-            # plt.plot(activityW.mean(axis=1))
-            # plt.plot(activityN.mean(axis=1))
-            # plt.plot(activityR.mean(axis=1))
-            # plt.ylabel('activityW.mean')
-            # plt.show()
+            
             self.mW , self.mN, self.mR = self.activityW.mean(axis=1), self.activityN.mean(axis=1), self.activityR.mean(axis=1)
             #print(self.mW[0] , self.mN[0], self.mR[0])
             self.updateFilters()
@@ -1077,7 +971,7 @@ class MyForm(QMainWindow):
         tracecol = 1.4* numpy.asarray([self.mR.T, self.mW.T, self.mN.T])
         tracecol = tracecol/tracecol.max()
         tscore =np.array([t*self.epochl for t in range(len(self.chunk_score))])
-        taxis = (numpy.arange(self.nframes)) / self.sr
+        taxis = (numpy.arange(self.nframes)) / self.srtr
         plt.plot(tscore/3600, self.chunk_score*4.5)
         plt.xlabel('Time (h)',fontsize=15)
         locs, labels = plt.yticks() 
@@ -1096,10 +990,7 @@ class MyForm(QMainWindow):
             indxt.append(remL[pvalrem.index(min(pvalrem))])
             pvalrem[pvalrem.index(min(pvalrem))]=100
             indxt.append(remL[pvalrem.index(min(pvalrem))])
-            #pvalrem[pvalrem.index(min(pvalrem))] = 100
-            #indxt.append(remL[pvalrem.index(min(pvalrem))])
-            #pvalrem[pvalrem.index(min(pvalrem))] = 100
-            #indxt.append(remL[pvalrem.index(min(pvalrem))])
+           
         if len(pvalnr)>0:
             indxt.append(nremL[pvalnr.index(min(pvalnr))])
             #pvalnr[pvalnr.index(min(pvalnr))]=100
@@ -1119,72 +1010,12 @@ class MyForm(QMainWindow):
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         ax.spines['left'].set_visible(False)
-        #ax.tick_params(left=False)
-        #ax.tick_params(labelleft=False)
-        #plt.box(on=None)
-        #ax.set_frame_on(False)
-        #ax.add_axes([0., 1., 1., 0])
-        #ax = plt.axes([0, 1., 0, 1.])
-        #ax.get_xaxis().set_visible(True)
-        #ax.get_yaxis().set_visible(False)
-        plt.show()
-        #Make dataframe with summary ctivity of each cell and saveit as CSV
-        #Mean activity for ech state and preference
         df = pd.DataFrame(columns=['Cell_ID','Experiment','Duration','hasREM','W_activity','NR_activity','REM_activity','Preference'])
         for n in ncells_list:
             df.loc[n]=[n,self.ui.label_5.text(),(self.timeTraces[-1]-self.timeTraces[0])/60,isrem,np.mean(self.activityW[n,:]),
                 np.mean(self.activityN[n,:]),np.mean(self.activityR[n,:]),pref_state[n]]
         df.to_csv(self.ui.label_5.text()+'.csv',index=False)
         print('Summary saved in '+self.ui.label_5.text()+'.csv')
-
-        """
-        
-        plotCanv.clear()
-        for i in range(len(filelist)):
-            plotCanv.plot(taxis, tracemat[i] + 10 * i, pen=(i, nelem))
-        self.Traces = tracemat
-                #Plot hypnogrsm during imaging and 10 random cell traces
-"""
-
-
-        #print("len lact,lstate =",len(lact),len(lstate))
-
-        # plt.plot(self.activityW[1,:])
-        # plt.plot(self.activityN[1,:])
-        # plt.plot(self.activityR[1,:])
-        # plt.ylabel('Z score per epoch')
-        # plt.show()
-        # plt.close()
-        #print(type(self.activityW))
-        #print("shape activityw =",self.activityW.shape())
-        #print("lengths = ",len(self.activityW[1,:]),len(self.activityN[1,:]),len(self.activityR[1,:]))
-        """d = {'Z_score': lact, 'State': lstate}
-        df = pd.DataFrame(d)
-        dfw = df[df['State'] == 'Wake']
-        dfn = df[df['State'] == 'NREM']
-        dfr = df[df['State'] == 'REM']
-        print(dfw)
-
-
-        #print(df.head())
-        # Create a boxplot
-        grps = pd.unique(df.State.values)
-        d_data = {grp: df['Z_score'][df.State == grp] for grp in grps}
-        print(d_data)
-        k = len(pd.unique(df.State))  # number of conditions
-        N = len(df.values)  # conditions times participants
-        n = df.groupby('State').size()[0]  # Participants in each condition
-        F, p = stats.f_oneway(d_data.values())
-        #F, p = stats.f_oneway(dfw.['z_score'].values,dfn['z_score'].values,dfr['z_score'].values)
-        if p<0.05:
-            print("Significant! N=",k0)
-            K0+=1
-"""
-
-
-
-
-
 
 if __name__=="__main__":
     app = QApplication(sys.argv)
