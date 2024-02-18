@@ -10,3 +10,15 @@ The outputs are images of the cells color coded by state preference, figure with
 ![traces](ca_traces.png)
 
 ![summary outpuy](output.png)
+
+## Installation
+Install python >=3.7
+
+type:
+pip -r install requirements.txt
+
+To execute:
+python caimgr2.py
+
+if you have pyhton2 as default, replace python by python3
+
